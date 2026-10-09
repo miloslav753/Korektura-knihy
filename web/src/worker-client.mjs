@@ -19,7 +19,7 @@ export class WorkerClient {
       if (data.type === 'boot-error') { this.fail(new Error(data.message)); return; }
       if (data.type === 'ready') { booted = true; clearTimeout(this.bootTimer); this.resolveReady(); }
       if (['progress', 'ocr-status'].includes(data.type)) {
-        for (const task of this.pending.values()) if (task.type === 'process') this.arm(task);
+        for (const task of this.pending.values()) if (['process','prepare-review','export-review'].includes(task.type)) this.arm(task);
       }
       const task = this.pending.get(data.id);
       if (task) {
@@ -32,7 +32,7 @@ export class WorkerClient {
   }
   arm(task) {
     clearTimeout(task.timer);
-    task.timer = setTimeout(() => this.fail(new Error(task.type === 'process'
+    task.timer = setTimeout(() => this.fail(new Error(['process','prepare-review','export-review'].includes(task.type)
       ? 'Kontrola dlouho neposkytla žádný průběh. Zkuste menší rozsah stran nebo vypnout OCR.'
       : 'Načítání PDF trvá příliš dlouho. Zkuste menší soubor nebo aplikaci obnovte.')), task.timeout);
   }
@@ -41,7 +41,7 @@ export class WorkerClient {
     if (this.failure) throw this.failure;
     const id = ++this.id;
     return new Promise((resolve, reject) => {
-      const task = {type, resolve, reject, timeout: type === 'process' ? this.processTimeout : this.requestTimeout};
+      const task = {type, resolve, reject, timeout: ['process','prepare-review','export-review'].includes(type) ? this.processTimeout : this.requestTimeout};
       this.pending.set(id, task); this.arm(task);
       try { this.worker.postMessage({type, id, ...payload}, transfer); }
       catch (error) { clearTimeout(task.timer); this.pending.delete(id); reject(error); }

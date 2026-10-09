@@ -33,6 +33,10 @@ if (sha256(ocrModel) !== '934bcaf97ef3348413263331131c9fa7f55f30db333c711929c124
   throw new Error('Czech OCR model checksum mismatch. Run scripts/setup_ocr.py with the pinned model.');
 }
 const licenseFiles = [
+  ['Franc-all — MIT', 'FRANC-LICENSE.txt'],
+  ['Trigram-utils — MIT', 'node_modules/trigram-utils/license'],
+  ['N-gram — MIT', 'node_modules/n-gram/license'],
+  ['Collapse-white-space — MIT', 'node_modules/collapse-white-space/license'],
   ['Noble hashes — MIT', 'node_modules/@noble/hashes/LICENSE'],
   ['Nspell — MIT', 'node_modules/nspell/license'],
   ['Tesseract.js — Apache-2.0', 'node_modules/tesseract.js/LICENSE.md'],
@@ -53,7 +57,7 @@ async function collect(directory, prefix) {
 await collect(path.join(root, 'src'), 'Korektura-knihy/web/src');
 await collect(path.join(root, 'tests'), 'Korektura-knihy/web/tests');
 await collect(dictionary, 'Korektura-knihy/data/cs_CZ');
-for (const name of ['build.mjs', 'package.json', 'package-lock.json', 'index.template.html', 'MUPDF-COPYING.txt', 'README.md']) {
+for (const name of ['build.mjs', 'package.json', 'package-lock.json', 'index.template.html', 'MUPDF-COPYING.txt', 'FRANC-LICENSE.txt', 'README.md']) {
   sourceFiles[`Korektura-knihy/web/${name}`] = new Uint8Array(await fs.readFile(path.join(root, name)));
 }
 for (const name of ['README.md', 'scripts/setup_ocr.py']) sourceFiles[`Korektura-knihy/${name}`] = new Uint8Array(await fs.readFile(path.join(repo, name)));

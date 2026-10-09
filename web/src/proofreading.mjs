@@ -1,4 +1,5 @@
 import nspell from 'nspell';
+import {protectText, preservesProtected} from './text-protection.mjs';
 
 const wordBoundary = pattern => `(?<![\\p{L}\\p{M}])${pattern}(?![\\p{L}\\p{M}])`;
 const grammar = [
@@ -34,6 +35,7 @@ export function createChecker(aff, dic) {
     return suggestionCache.get(word);
   };
   return {correct, check(text, {stylistic = false, ignoredWords = []} = {}) {
+    const protection = protectText(text, {ignoredWords, isKnown: correct, commonTypos: [...commonTypos.keys()]});
     const findings = [];
     const occupied = [];
     const overlaps = (start, end, ranges) => ranges.some(([left, right]) => start < right && end > left);
@@ -41,6 +43,7 @@ export function createChecker(aff, dic) {
       if (overlaps(start, end, occupied)) return;
       const original = text.slice(start, end);
       if (/^\p{Lu}/u.test(original) && replacement) replacement = replacement[0].toLocaleUpperCase('cs') + replacement.slice(1);
+      if (!preservesProtected(text, {start, end, original, replacement, category}, protection)) return;
       findings.push({start, end, category, original, replacement, message});
       occupied.push([start, end]);
     };

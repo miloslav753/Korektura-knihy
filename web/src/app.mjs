@@ -6,13 +6,15 @@ const assets = JSON.parse($('assets').textContent);
 let client, engineReady, initializing = true, engineAvailable = false, selectedFile = null, pages = null,
   busy = false, result = null, tablePage = 1, operation = null, started = 0, reader = null, operationCancelled = false;
 let downloads = [], workerURL;
+let manualReview = null;
 const pageCount = number => `${number} ${number === 1 ? 'strana' : number >= 2 && number <= 4 ? 'strany' : 'stran'}`;
 const message = text => { $('message').textContent = text || ''; $('message').hidden = !text; };
-function clearResult() {
+function clearResult(clearManual = true) {
   result = null; $('result').hidden = true;
   for (const url of downloads) URL.revokeObjectURL(url);
   downloads = [];
   for (const id of ['download-pdf', 'download-csv', 'download-json']) $(id).removeAttribute('href');
+  if (clearManual) { manualReview = null; $('manual-review').hidden = true; }
 }
 function setBusy(value) {
   busy = value;
@@ -20,7 +22,21 @@ function setBusy(value) {
   $('file').disabled = value || !engineAvailable; $('unlock').disabled = value || !engineAvailable;
   $('run').disabled = value || !pages || !engineAvailable;
   $('dropzone').classList.toggle('disabled', value || !engineAvailable);
+  for (const id of ['review-block','copy-prompt','import-response']) $(id).disabled = value;
+  $('finish-review').disabled = value || !manualReview || manualReview.completed.size !== manualReview.jobs.length;
 }
+function modeSettings() {
+  const mode = $('mode').value;
+  $('api-settings').hidden = mode !== 'online';
+  $('mode-help').textContent = mode === 'plus' ? 'Plus nemá API. Připravíme zadání pro váš ChatGPT; odpovědi vložíte zpět. Předplatné použijete na webu ChatGPT.'
+    : mode === 'online' ? 'Model zkontroluje text automaticky po blocích. Potřebujete API klíč vybraného poskytovatele a jeho samostatné účtování.'
+      : 'Slovník a základní pravidla běží bez internetu. Tento režim neposuzuje úplnou gramatiku ani smysl vět.';
+  $('privacy').textContent = mode === 'online' ? 'PDF a heslo zůstávají v prohlížeči. Text vybraných stran a okolní kontext se odesílají vybranému poskytovateli modelu.'
+    : mode === 'plus' ? 'PDF zůstává v prohlížeči. Textové bloky předáte ChatGPT ručně; zpracování se řídí nastavením vašeho účtu ChatGPT.'
+      : 'PDF ani text se neodesílají na server. Základní kontrola i OCR fungují bez internetu.';
+}
+$('mode').addEventListener('change', () => { if ($('mode').value === 'rules') $('stylistic').checked = false; modeSettings(); });
+modeSettings();
 async function send(type, payload = {}, transfer = []) {
   const current = await engineReady;
   if (operationCancelled) throw new Error('Zpracování bylo zastaveno. Vyberte PDF znovu.');
@@ -110,14 +126,59 @@ $('run').addEventListener('click', async () => {
   if (!Number.isInteger(firstPage) || !Number.isInteger(lastPage) || firstPage < 1 || firstPage > lastPage || lastPage > pages) {
     message('Vyberte platný rozsah stran PDF.'); return;
   }
+  if ($('mode').value === 'online' && !$('api-key').value.trim()) { message('Zadejte API klíč vybraného poskytovatele. ChatGPT Plus automatický přístup přes API nezahrnuje.'); return; }
   clearResult(); message(''); activity('process', 'Připravuji kontrolu…');
   try {
-    const output = await send('process', {options: {
+    const output = await send($('mode').value === 'plus' ? 'prepare-review' : 'process', {options: {
       firstPage, lastPage, password: $('password').value, stylistic: $('stylistic').checked,
-      useOCR: $('ocr').checked, ignoredWords: $('ignored').value.split(/[,\s]+/u).filter(Boolean),
+      semantic: $('semantic').checked, mode: $('mode').value,
+      api: $('mode').value === 'online' ? {provider:$('provider').value,key:$('api-key').value} : undefined,
+      useOCR: $('ocr').checked, ignoredWords: $('ignored').value.split(/[,;\n]+/u).map(value=>value.trim()).filter(Boolean),
     }});
-    showResult(output.result);
+    if (output.type === 'review-prepared') showManualReview(output); else showResult(output.result);
   } catch (error) { message(error.message); }
+  finally { finishActivity(); }
+});
+function showManualReview(output) {
+  manualReview = {...output,completed:new Set()};
+  $('manual-review').hidden = false; $('review-block').replaceChildren();
+  output.jobs.forEach((job,index) => $('review-block').append(new Option(`Blok ${index+1} z ${output.jobs.length}`,job.id)));
+  $('import-notice').textContent = output.warnings.join(' ');
+  reviewStatus(); showReviewBlock(); $('manual-review').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function reviewStatus() {
+  $('review-status').textContent = `Zkontrolováno ${manualReview.completed.size}/${manualReview.jobs.length} bloků · ${pageCount(manualReview.checkedPages)} připraveno`;
+  $('finish-review').disabled = busy || manualReview.completed.size !== manualReview.jobs.length;
+  for (const option of $('review-block').options) {
+    const index = manualReview.jobs.findIndex(job=>job.id===option.value);
+    option.textContent = `Blok ${index+1} z ${manualReview.jobs.length}${manualReview.completed.has(option.value)?' · hotovo':''}`;
+  }
+}
+function showReviewBlock() {
+  const job = manualReview.jobs.find(item=>item.id===$('review-block').value);
+  $('review-prompt').value = job.prompt; $('review-response').value = '';
+}
+$('review-block').addEventListener('change', showReviewBlock);
+$('copy-prompt').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('review-prompt').value); $('import-notice').textContent = 'Zadání zkopírováno. Vložte jej do ChatGPT.'; }
+  catch { $('review-prompt').focus(); $('review-prompt').select(); $('import-notice').textContent = 'Zadání je označené. Zkopírujte ho pomocí Ctrl+C.'; }
+});
+$('import-response').addEventListener('click', async () => {
+  if (!manualReview || !$('review-response').value.trim()) { message('Vložte celou JSON odpověď ChatGPT pro vybraný blok.'); return; }
+  message(''); activity('import','Ověřuji návrhy proti původnímu textu…');
+  try {
+    const output = await send('import-review',{jobID:$('review-block').value,content:$('review-response').value});
+    clearResult(false); manualReview.completed.add(output.jobID); reviewStatus();
+    $('import-notice').textContent = `Přijato ${output.accepted} návrhů; odmítnuto ${output.rejected}. Odmítnuté návrhy měnily chráněný text, neměly jednoznačné místo nebo nesplnily formát.`;
+    const next = manualReview.jobs.find(job=>!manualReview.completed.has(job.id));
+    if (next) { $('review-block').value = next.id; showReviewBlock(); }
+  } catch (error) { message(error.message); }
+  finally { finishActivity(); }
+});
+$('finish-review').addEventListener('click', async () => {
+  clearResult(false); message(''); activity('process','Vytvářím PDF z ověřených korektur…');
+  try { showResult((await send('export-review')).result); }
+  catch (error) { message(error.message); }
   finally { finishActivity(); }
 });
 $('cancel').addEventListener('click', () => {
@@ -219,6 +280,7 @@ async function initialize() {
       $('startup').textContent = 'Připraveno. Vyberte své PDF.';
     } else if (data.type === 'inspect-status' && operation === 'load') progress(data.message);
     else if (data.type === 'progress' && operation === 'process') {
+      if (data.stage === 'model') { $('ocr-progress').hidden = true; progress(data.message,data.done/data.total); return; }
       if (data.stage !== 'ocr') $('ocr-progress').hidden = true;
       const label = data.stage === 'save' ? 'Ukládám PDF s korekturami…'
         : `${data.message || 'Kontroluji'} stranu ${data.page} · ${data.done}/${data.total} dokončeno`;
@@ -247,5 +309,6 @@ const clock = setInterval(() => {
 }, 1000);
 engineReady = initialize(); engineReady.catch(() => {});
 window.addEventListener('pagehide', () => {
+  $('api-key').value = '';
   clearInterval(clock); client?.close(); for (const url of downloads) URL.revokeObjectURL(url); if (workerURL) URL.revokeObjectURL(workerURL);
 });

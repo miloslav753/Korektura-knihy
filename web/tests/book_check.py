@@ -23,6 +23,7 @@ with tempfile.TemporaryDirectory(prefix='korektura-book-') as folder, sync_playw
     page = context.new_page()
     page.goto(URL, wait_until='domcontentloaded'); context.set_offline(True)
     expect(page.locator('#file')).to_be_enabled(timeout=120000)
+    page.locator('#mode').select_option('rules')
     page.locator('#file').set_input_files(source)
     expect(page.locator('#metadata')).to_contain_text('100 stran', timeout=30000)
     expect(page.locator('#run')).to_be_enabled()

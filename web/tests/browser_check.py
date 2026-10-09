@@ -55,6 +55,7 @@ with tempfile.TemporaryDirectory(prefix="korektura-web-") as directory, sync_pla
     expect(page.locator('#run')).to_be_enabled(timeout=30000)
     expect(page.locator('#file-help')).to_contain_text('Spustit korekturu')
     expect(page.locator('#startup-progress')).to_be_hidden()
+    page.locator('#mode').select_option('rules')
     print('PASS: early PDF drop waits for initialization, finishes loading and reveals the start button', flush=True)
 
     def upload(path):

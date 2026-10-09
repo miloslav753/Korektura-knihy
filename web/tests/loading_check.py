@@ -38,6 +38,7 @@ with tempfile.TemporaryDirectory(prefix='korektura-loading-') as directory, sync
     page.goto(URL, wait_until='domcontentloaded')
     context.set_offline(True)
     expect(page.locator('#file')).to_be_enabled(timeout=120000)
+    page.locator('#mode').select_option('rules')
 
     def recover():
         expect(page.locator('#retry')).to_be_visible()

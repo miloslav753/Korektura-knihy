@@ -4,18 +4,21 @@ Webová aplikace pro české korektury PDF. Nahrajete PDF z počítače, spustí
 
 ## Doporučená verze: pouze webový prohlížeč, bez instalace
 
-Nová verze v `web/` zpracovává PDF, český slovník i OCR **přímo v prohlížeči**. Nevyžaduje Python, spouštěč, systémový Tesseract ani připojení při kontrole knihy. Veškeré potřebné součásti jsou přibaleny do jediného souboru HTML.
+Verze **2.0** v `web/` zpracovává PDF a OCR **přímo v prohlížeči**. Nevyžaduje Python, spouštěč ani systémový Tesseract. Podporuje ChatGPT Plus pomocí ručního přenosu bloků, automatickou korekturu přes samostatně účtované API nebo základní pravidla bez internetu. Místní nástroje jsou přibaleny do jediného souboru HTML; jazykový model vyžaduje internet.
 
-1. [Stáhněte hotovou aplikaci v ZIP](https://github.com/miloslav753/Korektura-knihy/raw/refs/heads/codex/browser-download/downloads/Korektura-knihy-bez-instalace.zip), rozbalte jej a otevřete **Korektura-knihy-1.2.html** (vývojové sestavení: `web/dist/index.html`).
+1. [Stáhněte hotovou aplikaci v ZIP](https://github.com/miloslav753/Korektura-knihy/raw/refs/heads/codex/browser-download/downloads/Korektura-knihy-bez-instalace.zip), rozbalte jej a otevřete **Korektura-knihy-2.0.html** (vývojové sestavení: `web/dist/index.html`).
 2. Otevřete jej v aktuálním Chrome, Edge, Firefoxu nebo Safari.
-3. Vyberte PDF, vyčkejte na načtení, nastavte rozsah a klikněte na **Spustit korekturu**. Verze 1.2 opravuje spuštění z místního souboru a ukazuje průběh přípravy, načítání, kontroly i OCR, uplynulý čas a umožňuje zastavení a obnovení po chybě.
-4. Stáhněte PDF s komentáři a seznam v CSV nebo JSON.
+3. Vyberte PDF, vyčkejte na načtení, nastavte rozsah a způsob kontroly a klikněte na **Spustit korekturu**.
+4. Při použití **ChatGPT Plus** zkopírujte připravené zadání každého bloku do svého ChatGPT a celou JSON odpověď vložte zpět do aplikace. Až budou všechny bloky hotové, vytvořte PDF. Plus nezahrnuje API; plně automatický přenos z této aplikace v rámci Plus není dostupný.
+5. Stáhněte PDF s komentáři a seznam v CSV nebo JSON. API režim provede přenos automaticky s vaším API klíčem a samostatným účtováním.
 
-Celá aplikace běží v paměti prohlížeče; kniha a heslo se neodesílají na server. Funguje také jako běžná stránka na **statickém HTTPS hostingu**. Běžný uživatel webové stránky nic nestahuje ani neinstaluje. Veřejná internetová adresa musí vzniknout skutečným nasazením na hosting; publikování cloudového vývojového prostředí ji nevytváří.
+PDF a heslo zůstávají v paměti prohlížeče. API režim odesílá text vybraných stran s okolním kontextem poskytovateli modelu; Plus režim ho předává prostřednictvím vašeho ručního vložení do ChatGPT. Základní režim nic neodesílá. Aplikace funguje také na **statickém HTTPS hostingu**. Veřejná internetová adresa musí vzniknout skutečným nasazením na hosting; publikování cloudového vývojového prostředí ji nevytváří.
 
 Ověřeno v Chromiu: načtení z interního statického serveru, následné úplné odpojení sítě, nahrání a stažení PDF/CSV/JSON, původní obsah a vykreslení, stylistika, rozsah, chybné PDF, heslo a zachované šifrování, otočení, české OCR a mobilní rozložení. Místní otevření přes `file://` je v cloudovém testovacím prohlížeči blokováno jeho administrátorskou politikou; přímé otevření souboru z disku zde nebylo možné ověřit. Přímý test v Acrobatu ani test na Windows nebyl proveden.
 
-Podrobnosti sestavení a vystavení na webu jsou v **web/README.md**. Zdrojový archiv a licence jsou vložené také přímo do HTML aplikace. Rozsah jazykové kontroly je stále vymezen níže: základní pravidla, nikoli úplná analýza češtiny.
+Zadání pro model zahrnuje český pravopis, gramatiku, čárky v souvětích, velká a malá písmena, volitelnou stylistiku a smysl vět. Ochranné kontroly odmítají návrhy měnící rozpoznané vlastní názvy, zkratky a cizojazyčné citace. Vlastní seznam umožňuje doplnit další chráněné názvy. Rozpoznávání je konzervativní a omylné; výsledky vyžadují posouzení. Qwen3 uvádí češtinu ve svých [trénovacích jazycích](https://qwenlm.github.io/blog/qwen3/). OpenAI nezveřejňuje úplné jazykové složení trénovacích dat GPT-4.1.
+
+Ověřeno je zpracování připravených modelových odpovědí, odmítání chybných návrhů, API komunikace se simulovanou odpovědí a zachování PDF. Skutečná kvalita ChatGPT ani živá dostupnost API modelů bez účtu/klíče nebyla měřena. Podrobnosti sestavení, testů a hostování jsou v **web/README.md**. Zdrojový archiv a licence jsou vložené také přímo do HTML aplikace. Následující pokyny a rozsah základních pravidel platí pro původní Pythonovou verzi.
 
 ## Původní verze s Pythonem
 

@@ -45,6 +45,7 @@ with tempfile.TemporaryDirectory(prefix='korektura-opaque-') as directory, sync_
     frame.wait_for_function('document.getElementById("file")?.disabled === false || document.getElementById("message")?.hidden === false', timeout=120000)
     assert app.locator('#message').is_hidden(), app.locator('#message').text_content()
     expect(app.locator('#file')).to_be_enabled()
+    app.locator('#mode').select_option('rules')
     assert frame.evaluate('location.origin') == 'null'
     assert frame.evaluate('isSecureContext && !!crypto.subtle')
     expect(app.locator('#message')).to_be_hidden()

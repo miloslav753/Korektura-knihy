@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Korektura českého PDF přímo ve webovém prohlížeči, bez instalace a bez odesílání knihy na server.">
+  <meta name="description" content="Korektura českého PDF s jazykovým modelem, ChatGPT Plus nebo API, bez instalace a se zachováním sazby.">
   <title>Korektura knihy — bez instalace</title>
   <style>
     :root{color-scheme:light;--paper:#f8f6f1;--ink:#243b43;--green:#276457;--muted:#63736e;--line:#dcded5}
@@ -47,18 +47,28 @@
         <small id="file-help">Klikněte nebo soubor přetáhněte sem · nejvýše 150 MB</small>
         <input type="file" id="file" accept="application/pdf,.pdf" aria-label="Vyberte PDF z počítače" disabled>
       </label>
-      <p class="subtle">Kniha zůstává ve vašem prohlížeči. PDF ani text se neodesílají na server. Funguje i bez připojení k internetu.</p>
+      <p id="privacy" class="subtle">PDF zůstává v prohlížeči. Pro ChatGPT Plus si zkopírujete připravené textové bloky a vrátíte odpovědi do aplikace.</p>
     </section>
     <section aria-labelledby="options-heading"><h2 id="options-heading">Rozsah kontroly</h2>
-      <p>Český pravopis, běžné gramatické chyby, interpunkční mezery a typografie.</p>
-      <label class="checkbox"><input id="stylistic" type="checkbox" data-setting><span>Přidat stylistická doporučení</span></label>
+      <label class="field">Způsob kontroly<select id="mode" data-setting>
+        <option value="plus">ChatGPT Plus – ruční přenos bloků</option><option value="online">Jazykový model – automaticky přes API</option><option value="rules">Základní pravidla – bez internetu</option>
+      </select></label>
+      <p id="mode-help" class="subtle">Plus nemá API. Připravíme zadání pro váš ChatGPT; odpovědi vložíte zpět. Předplatné použijete na webu ChatGPT.</p>
+      <div id="api-settings" hidden>
+        <label class="field">Poskytovatel a model<select id="provider" data-setting><option value="openai">OpenAI GPT-4.1 – API mimo Plus</option><option value="qwen">OpenRouter Qwen3-235B – trénovaný také na češtině</option></select></label>
+        <label class="field">API klíč<input id="api-key" type="password" autocomplete="off" spellcheck="false" data-setting placeholder="Klíč vybraného poskytovatele"></label>
+        <p class="subtle">API se účtuje samostatně. Klíč se neukládá do souboru ani reportů. Získáte ho na <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">OpenAI</a> nebo <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener noreferrer">OpenRouter</a>.</p>
+      </div>
+      <label class="checkbox"><input id="stylistic" type="checkbox" data-setting checked><span>Přidat stylistická doporučení</span></label>
+      <label class="checkbox"><input id="semantic" type="checkbox" data-setting checked><span>Posoudit smysl a srozumitelnost vět</span></label>
       <label class="checkbox"><input id="ocr" type="checkbox" data-setting checked><span>Rozpoznat text naskenovaných stran (OCR)</span></label>
       <p class="subtle">OCR probíhá přímo v prohlížeči a může trvat déle než kontrola textového PDF.</p>
     </section>
   </div>
   <details><summary>Co tato kontrola umí</summary>
-    <p>Pravopis používá český slovník Hunspell. Gramatická pravidla hledají například chybné podoby „by jste“, „aby jsme“, dvojí stupňování a opakovaná slova. Interpunkční kontrola hledá nesprávné mezery a zdvojená znaménka; neurčuje všechny čárky ve větách. Stylistická kontrola navrhuje zkrácení vybraných obratů.</p>
-    <p>Nálezy jsou návrhy k posouzení. Složitá větná stavba, shoda podmětu s přísudkem a literární styl vyžadují další kontrolu. Jména a odborné výrazy můžete přidat mezi povolená slova. OCR může zaměnit znaky.</p>
+    <p>Jazykovému modelu se zadává kontrola celých vět s kontextem: gramatika, nadbytečné a chybějící čárky, velká a malá písmena, stylistika a smysl vět. Qwen3 má ve zveřejněných trénovacích jazycích češtinu. ChatGPT použijete ručním přenosem v Plus nebo samostatně účtovaným OpenAI API. Základní režim používá slovník a vybraná pravidla.</p>
+    <p>Geografické názvy, příjmení a ustálené zkratky se chrání před přejmenováním. Krátké nebo nejisté citace se ponechávají beze změn; model má vynechat němčinu, francouzštinu, latinu i angličtinu. Vlastní seznam umožňuje chránit další názvy. Každý návrh se ověří proti původnímu textu; neurčitý nebo poškozující návrh se odmítne.</p>
+    <p>Výsledky modelu mohou obsahovat chyby a vyžadují posouzení. Nejisté významové nebo historické tvrzení se uvede jako poznámka, nikoli jako vymyšlený fakt. OCR může zaměnit znaky. Jazykový model není zárukou bezchybnosti.</p>
     <p>Opravy se ukládají jako standardní PDF zvýraznění a komentáře pro Acrobat Reader. Původní text se nepřepisuje. Při úpravě podepsaného PDF vznikne nová verze souboru.</p>
   </details>
   <div id="message" class="status error" role="alert" hidden></div>
@@ -73,7 +83,7 @@
     <details><summary>Vybrat stránky a povolená slova</summary>
       <div class="fields"><label class="field">Od strany<input id="first-page" type="number" min="1" step="1" value="1" data-setting></label>
         <label class="field">Do strany<input id="last-page" type="number" min="1" step="1" value="1" data-setting></label></div>
-      <label class="field">Povolená slova<textarea id="ignored" placeholder="Příjmení a názvy oddělené čárkou nebo mezerou" data-setting></textarea></label>
+      <label class="field">Chráněná jména, názvy a výrazy<textarea id="ignored" placeholder="Český Krumlov, Jan Švamberk — nebo jeden název na řádek" data-setting></textarea></label>
     </details>
     <button id="run" class="primary" type="button">Spustit korekturu</button>
   </section>
@@ -83,6 +93,18 @@
     <div id="ocr-progress" hidden><span id="ocr-label"></span><progress id="ocr-bar" max="1" aria-label="Průběh OCR aktuální strany"></progress></div>
     <button id="cancel" type="button">Zastavit zpracování</button>
   </div>
+  <section id="manual-review" class="locked" hidden>
+    <h2>Korektura přes váš ChatGPT Plus</h2>
+    <p>Zkopírujte zadání pro tento blok do <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">ChatGPT</a>. Celou jeho JSON odpověď vložte sem a potvrďte. Postup opakujte pro všechny bloky, potom vytvořte PDF.</p>
+    <p id="review-status" class="status"></p>
+    <label class="field">Blok k posouzení<select id="review-block"></select></label>
+    <label class="field">Zadání a text pro ChatGPT<textarea id="review-prompt" readonly rows="6"></textarea></label>
+    <button id="copy-prompt" type="button">Zkopírovat zadání</button>
+    <label class="field">JSON odpověď ChatGPT<textarea id="review-response" rows="6" placeholder="Vložte celou JSON odpověď odpovídající tomuto bloku"></textarea></label>
+    <button id="import-response" type="button">Přijmout odpověď</button>
+    <button id="finish-review" class="primary" type="button" disabled>Vytvořit PDF s korekturami</button>
+    <p id="import-notice" class="subtle" role="status"></p>
+  </section>
   <section id="result" hidden><hr><h2>Vaše korektury</h2>
     <div id="complete" class="status"></div>
     <div class="metrics"><div class="metric"><span>Nálezy celkem</span><strong id="count-total"></strong></div>
@@ -100,10 +122,10 @@
       <div class="table-wrap"><table><thead><tr><th>Číslo</th><th>Strana</th><th>Kategorie</th><th>Původní text</th><th>Návrh</th><th>Komentář</th><th>Zdroj</th></tr></thead><tbody id="rows"></tbody></table></div>
       <div class="pager"><button id="previous" type="button">Předchozí</button><span id="pagination"></span><button id="next" type="button">Další</button></div>
     </div>
-    <p id="no-findings" class="subtle" hidden>V kontrolovaném rozsahu nebyly nalezeny chyby podle dostupného slovníku a pravidel.</p>
+    <p id="no-findings" class="subtle" hidden>V kontrolovaném rozsahu nebyly navrženy žádné korektury.</p>
   </section>
-  <footer class="footer">Korektura knihy · Verze 1.2 · Česká diakritika · PDF, CSV a JSON · Veškeré zpracování v prohlížeči
-    <details><summary>Zdrojový kód a licence použitých součástí</summary><p>Zdrojový kód této verze je přibalený přímo v aplikaci. Aplikace používá MuPDF (AGPL-3.0-or-later), Nspell / Noble hashes (MIT), český slovník LibreOffice a Tesseract.js / Tesseract.js-core / český OCR model (Apache-2.0). Toto zobrazení nabízí technický základ české korektury, nikoli úplnou gramatickou analýzu.</p><button id="download-source" type="button">Stáhnout zdrojový kód</button><pre id="licenses"></pre></details>
+  <footer class="footer">Korektura knihy · Verze 2.0 · ChatGPT Plus / API · PDF, CSV a JSON · PDF anotace přímo v prohlížeči
+    <details><summary>Zdrojový kód a licence použitých součástí</summary><p>Zdrojový kód této verze je přibalený přímo v aplikaci. Aplikace používá MuPDF (AGPL-3.0-or-later), Nspell / Noble hashes / Franc (MIT), český slovník LibreOffice a Tesseract.js / Tesseract.js-core / český OCR model (Apache-2.0). Jazykové modely mají vlastní podmínky poskytovatele. <a href="https://qwenlm.github.io/blog/qwen3/" target="_blank" rel="noopener noreferrer">Dokumentace Qwen3 včetně trénovacích jazyků</a>.</p><button id="download-source" type="button">Stáhnout zdrojový kód</button><pre id="licenses"></pre></details>
   </footer>
 </main>
 <script id="assets" type="application/json">__PAYLOAD__</script>

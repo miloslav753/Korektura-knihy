@@ -1,7 +1,8 @@
 import * as mupdf from 'mupdf';
 
 export const colors = {Pravopis: [1, .65, .15], Gramatika: [1, .35, .35],
-  Interpunkce: [.3, .65, 1], Typografie: [.25, .75, .55], Stylistika: [.7, .45, 1]};
+  Interpunkce: [.3, .65, 1], Typografie: [.25, .75, .55], Stylistika: [.7, .45, 1],
+  'Velká a malá písmena': [.95, .5, .2], 'Smysl vět': [.5, .4, .8]};
 const pause = () => new Promise(resolve => setTimeout(resolve, 0));
 
 export function openPdf(bytes, password = '', allowLocked = false) {
@@ -202,8 +203,88 @@ export function makeCSV(result) {
     return `"${text.replaceAll('"', '""')}"`;
   };
   const rows = [['Číslo', 'Strana', 'Kategorie', 'Původní text', 'Návrh opravy', 'Komentář', 'Zdroj'],
-    ...result.corrections.map(item => [item.id, item.page, item.category, item.original, item.replacement, item.message, item.source])];
+    ...result.corrections.map(item => [item.id, item.page, item.category, item.original, item.replacement ?? '(poznámka k posouzení)', item.message, item.source])];
   return '\uFEFF' + rows.map(row => row.map(escape).join(',')).join('\r\n') + '\r\n';
 }
 
 export function makeJSON({pdf, ...details}) { return JSON.stringify(details, null, 2); }
+
+export async function extractBook(bytes, options, {progress = () => {}, ocr, cancelled = () => false} = {}) {
+  const {doc, pages} = openPdf(bytes, options.password);
+  const first = options.firstPage || 1, last = options.lastPage || pages;
+  const records = [], warnings = [], ocrPages = [], skippedPages = [];
+  let text = '';
+  try {
+    if (!Number.isInteger(first) || !Number.isInteger(last) || first < 1 || first > last || last > pages) throw new Error('Vyberte platný rozsah stran PDF.');
+    for (let index = first - 1; index < last; index++) {
+      if (cancelled()) throw new Error('CANCELLED');
+      const status = {done: index - first + 1, total: last - first + 1, page: index + 1};
+      progress({...status, message: 'Připravuji text na', stage: 'page'});
+      const page = doc.loadPage(index);
+      try {
+        let extracted = extractPage(page), source = 'Text PDF';
+        if (extracted.text.trim().length < 30 && (extracted.hasImages || !extracted.text.trim())) {
+          if (options.useOCR && ocr) {
+            progress({...status, message: 'Rozpoznávám text na', stage: 'ocr'});
+            const raster = rasterize(page);
+            extracted = extractOCR(await ocr(raster.image), raster.scale, raster.bounds);
+            source = 'OCR'; ocrPages.push(index + 1);
+          } else if (extracted.hasImages) extracted = {text: '', positions: []};
+        }
+        if (!extracted.text.trim()) {
+          skippedPages.push(index + 1); warnings.push(`Strana ${index + 1}: nebyl nalezen text ke kontrole.`); continue;
+        }
+        const from = extracted.text.search(/\S/u), to = extracted.text.trimEnd().length;
+        if (text) text += '\n';
+        const start = text.length;
+        text += extracted.text.slice(from, to);
+        records.push({page: index + 1, start, end: text.length, positions: extracted.positions.slice(from, to), source});
+        if (text.length > 1_000_000) throw new Error('Text je příliš rozsáhlý. Vyberte menší rozsah stran (nejvýše milion znaků).');
+      } finally {
+        page.destroy(); progress({...status, done: status.done + 1, stage: 'page'});
+      }
+      await pause();
+    }
+    if (!records.length) throw new Error('Ve vybraných stranách nebyl nalezen text. U skenu zapněte OCR.');
+    return {text, records, warnings, ocrPages, skippedPages, checkedPages: records.length, totalPages: pages, selectedPages: [first,last]};
+  } finally { doc.destroy(); }
+}
+
+export async function annotateReview(bytes, book, findings, options, metadata = {}, {progress = () => {}, cancelled = () => false} = {}) {
+  if (findings.length > 50000) throw new Error('Více než 50 000 nálezů. Zpracujte menší rozsah stran.');
+  const {doc} = openPdf(bytes, options.password);
+  try {
+    const corrections = findings.map((finding, index) => {
+      const records = book.records.filter(record => finding.start < record.end && finding.end > record.start);
+      if (!records.length) throw new Error('Návrh modelu nemá místo v PDF.');
+      return {...finding, id: index + 1, page: records[0].page, endPage: records.at(-1).page,
+        source: records.some(record => record.source === 'OCR') ? 'OCR' : 'Text PDF'};
+    });
+    for (let index = 0; index < book.records.length; index++) {
+      if (cancelled()) throw new Error('CANCELLED');
+      const record = book.records[index], page = doc.loadPage(record.page - 1);
+      try {
+        for (const finding of corrections.filter(item => item.start < record.end && item.end > record.start)) {
+          const quads = findingQuads(record.positions, {start: Math.max(0, finding.start - record.start), end: Math.min(record.positions.length, finding.end - record.start)});
+          if (!quads.length) throw new Error('Návrh modelu nelze přiřadit k místu na stránce PDF.');
+          const annotation = page.createAnnotation('Highlight');
+          try {
+            annotation.setQuadPoints(quads); annotation.setColor(colors[finding.category]); annotation.setOpacity(.35);
+            annotation.setAuthor('Korektura knihy'); annotation.setSubject(finding.category); annotation.setLanguage('cs');
+            const proposal = finding.note ? '(poznámka k posouzení)' : finding.replacement || '(odstranit)';
+            annotation.setContents(`#${finding.id} · ${finding.category}\nPůvodní: ${finding.original}\nNávrh: ${proposal}\n${finding.message}`);
+            annotation.update();
+          } finally { annotation.destroy(); }
+        }
+      } finally { page.destroy(); }
+      progress({done: index + 1, total: book.records.length, page: record.page, message: 'Vyznačuji korektury na', stage: 'page'});
+      await pause();
+    }
+    const buffer = doc.saveToBuffer('compress=yes,garbage=0,encrypt=keep');
+    let pdf; try { pdf = buffer.asUint8Array().slice(); } finally { buffer.destroy(); }
+    const counts = corrections.reduce((acc,item) => { acc[item.category] = (acc[item.category] || 0) + 1; return acc; }, {});
+    return {pdf, corrections, counts, checkedPages: book.checkedPages, totalPages: book.totalPages,
+      ocrPages: book.ocrPages, skippedPages: book.skippedPages, selectedPages: book.selectedPages,
+      warnings: [...book.warnings, ...(metadata.warnings || [])], review: metadata};
+  } finally { doc.destroy(); }
+}
