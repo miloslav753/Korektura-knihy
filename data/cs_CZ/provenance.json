@@ -1,0 +1,10 @@
+{
+  "source": "https://github.com/LibreOffice/dictionaries",
+  "revision": "32b006a2c22a4ac7e8ed3f03346f7b3d85a970a4",
+  "sha256": {
+    "cs_CZ.aff": "7ecb20620ecd46ebd9c36f3f33e69dd4eda385cba5b2bb4e6bc396d910e297f7",
+    "cs_CZ.dic": "d8e8c88c006fdae72dac8c85df11b0c99a773e05a4ab0fcbe92244876668ca74",
+    "README_cs.txt": "24d1d07409b62e8e6f0ee114991d4749d3e97b05ea19feca835916af67312720",
+    "README_en.txt": "0fe6d017aa91ffb58146d19160f8207900cc0c49d5fffef0b1a7d3a364cb29bd"
+  }
+}

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Korektura českého PDF přímo ve webovém prohlížeči, bez instalace a bez odesílání knihy na server.">
+  <title>Korektura knihy — bez instalace</title>
+  <style>
+    :root{color-scheme:light;--paper:#f8f6f1;--ink:#243b43;--green:#276457;--muted:#63736e;--line:#dcded5}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 system-ui,-apple-system,'Segoe UI',sans-serif}
+    main{max-width:1160px;margin:auto;padding:48px 28px 60px}h1,h2,h3{font-family:Georgia,'Times New Roman',serif;font-weight:600;line-height:1.2;color:#163b43}
+    h1{font-size:clamp(2.4rem,5vw,3.6rem);letter-spacing:-.06em;margin:14px 0 22px}h2{font-size:1.7rem;margin:0 0 20px}h3{font-size:1.3rem;margin:0 0 14px}
+    .eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-weight:700}.lead{font-size:1.15rem;max-width:760px;color:var(--muted)}
+    .steps{display:flex;gap:28px;flex-wrap:wrap;margin:26px 0 40px;color:var(--muted)}.steps b{color:#a56b3b;margin-right:8px}.columns{display:grid;grid-template-columns:1.4fr 1fr;gap:40px}
+    .dropzone{position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;padding:38px 20px;background:white;border:1.5px dashed #b5c5ba;border-radius:16px;text-align:center;cursor:pointer;min-height:210px}
+    .dropzone:hover,.dropzone.drag{border-color:var(--green);background:#f1f7f1}.dropzone input{position:absolute;inset:0;opacity:0;width:100%;cursor:pointer}.dropzone:focus-within{outline:3px solid #69a493;outline-offset:3px}.dropzone.disabled{opacity:.55;cursor:wait}
+    .dropzone svg{width:44px;height:44px;color:#a78b55}.file-name{font-weight:650;word-break:break-word}.subtle,small{font-size:.83rem;color:var(--muted)}.subtle{margin:14px 0}
+    .checkbox{display:flex;align-items:start;gap:10px;margin:15px 0;cursor:pointer}.checkbox input{margin:7px 0 0;accent-color:var(--green);width:17px;height:17px;flex-shrink:0}
+    details{border:1px solid var(--line);border-radius:10px;padding:12px 18px;margin:22px 0}summary{cursor:pointer}details p{font-size:.94rem}button,.download{font:inherit;cursor:pointer;border:1px solid #c5d1c8;border-radius:9px;padding:10px 17px;color:var(--ink);background:white;text-decoration:none;text-align:center;display:inline-block}button:hover,.download:hover{background:#edf4ee}
+    button:disabled{opacity:.45;cursor:default}.primary{background:var(--green);color:white;border-color:var(--green);font-weight:650;width:100%;padding:13px 18px}.primary:hover{background:#1d5348}.primary:disabled{background:var(--green)}
+    .fields{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:10px 0 18px}label.field{display:flex;flex-direction:column;gap:7px;font-size:.9rem}input:not([type=checkbox]):not([type=file]),textarea,select{font:inherit;padding:9px 12px;background:#efede6;border:1px solid transparent;border-radius:8px;color:var(--ink);width:100%}input:focus,textarea:focus,select:focus{outline:2px solid #77ab99}textarea{resize:vertical;min-height:76px}
+    .locked{background:white;border-radius:12px;padding:20px;margin:18px 0}.locked button{margin-top:12px}.status{padding:12px 16px;border-radius:10px;background:#eaf0e8;color:#3b6256;margin:18px 0}.error{background:#fae7e3;color:#9b392e}.warning{background:#fff1d9;color:#765d2a}.processing{margin:20px 0}progress{width:100%;height:10px;accent-color:var(--green)}
+    hr{border:0;border-top:1px solid var(--line);margin:40px 0}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:20px 0}.metric{padding:18px;background:white;border-radius:12px}.metric span{display:block;font-size:.81rem}.metric strong{font-size:2rem;font-weight:500;display:block;margin-top:7px}.downloads{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:20px 0}.counts{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0 10px}.counts span{border:1px solid var(--line);border-radius:20px;padding:4px 12px;font-size:.84rem;background:white}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}table{width:100%;border-collapse:collapse;font-size:.85rem}th,td{padding:11px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}th{background:#edf0ea;font-weight:550;white-space:nowrap}td:nth-child(4),td:nth-child(5){min-width:125px}td:nth-child(6){min-width:250px}.pager{display:flex;gap:14px;align-items:center;justify-content:flex-end;margin:15px 0}.pager span{font-size:.85rem}.visually-hidden{position:absolute;clip:rect(0,0,0,0);width:1px;height:1px;overflow:hidden}.footer{border-top:1px solid var(--line);margin-top:44px;padding-top:18px;color:var(--muted);font-size:.8rem}.footer details{margin-bottom:0}.footer pre{white-space:pre-wrap;max-height:280px;overflow:auto;font-size:11px} [hidden]{display:none!important}
+    @media(max-width:700px){main{padding:28px 18px}.columns{grid-template-columns:1fr;gap:26px}.steps{gap:16px;margin-bottom:28px}.metrics{grid-template-columns:1fr 1fr}.downloads{grid-template-columns:1fr}.fields{grid-template-columns:1fr}.dropzone{min-height:190px}.pager{justify-content:center}}
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">Český text · Původní sazba · Bez instalace</div>
+  <h1>Každé slovo na svém místě.</h1>
+  <p class="lead">Nahrajte knihu v PDF. Projděte návrhy oprav a stáhněte si dokument s komentáři — ve stejném vzhledu jako originál.</p>
+  <div class="steps"><span><b>01</b>Nahrajte PDF</span><span><b>02</b>Spusťte kontrolu</span><span><b>03</b>Stáhněte korektury</span></div>
+  <div id="startup" class="status" role="status" aria-live="polite">Připravuji aplikaci pro váš prohlížeč…</div>
+  <div class="columns">
+    <section aria-labelledby="book-heading"><h2 id="book-heading">Vaše kniha</h2>
+      <label class="dropzone disabled" id="dropzone">
+        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 4h17l9 9v31H12z"/><path d="M29 4v11h9M24 34V21m-6 6 6-6 6 6"/></svg>
+        <span id="file-label" class="file-name">Vyberte PDF z počítače</span>
+        <small id="file-help">Klikněte nebo soubor přetáhněte sem · nejvýše 150 MB</small>
+        <input type="file" id="file" accept="application/pdf,.pdf" aria-label="Vyberte PDF z počítače" disabled>
+      </label>
+      <p class="subtle">Kniha zůstává ve vašem prohlížeči. PDF ani text se neodesílají na server. Funguje i bez připojení k internetu.</p>
+    </section>
+    <section aria-labelledby="options-heading"><h2 id="options-heading">Rozsah kontroly</h2>
+      <p>Český pravopis, běžné gramatické chyby, interpunkční mezery a typografie.</p>
+      <label class="checkbox"><input id="stylistic" type="checkbox" data-setting><span>Přidat stylistická doporučení</span></label>
+      <label class="checkbox"><input id="ocr" type="checkbox" data-setting checked><span>Rozpoznat text naskenovaných stran (OCR)</span></label>
+      <p class="subtle">OCR probíhá přímo v prohlížeči a může trvat déle než kontrola textového PDF.</p>
+    </section>
+  </div>
+  <details><summary>Co tato kontrola umí</summary>
+    <p>Pravopis používá český slovník Hunspell. Gramatická pravidla hledají například chybné podoby „by jste“, „aby jsme“, dvojí stupňování a opakovaná slova. Interpunkční kontrola hledá nesprávné mezery a zdvojená znaménka; neurčuje všechny čárky ve větách. Stylistická kontrola navrhuje zkrácení vybraných obratů.</p>
+    <p>Nálezy jsou návrhy k posouzení. Složitá větná stavba, shoda podmětu s přísudkem a literární styl vyžadují další kontrolu. Jména a odborné výrazy můžete přidat mezi povolená slova. OCR může zaměnit znaky.</p>
+    <p>Opravy se ukládají jako standardní PDF zvýraznění a komentáře pro Acrobat Reader. Původní text se nepřepisuje. Při úpravě podepsaného PDF vznikne nová verze souboru.</p>
+  </details>
+  <div id="message" class="status error" role="alert" hidden></div>
+  <div id="locked" class="locked" hidden><h3>PDF je chráněno heslem</h3>
+    <label class="field">Heslo k PDF<input id="password" type="password" autocomplete="off" data-setting></label>
+    <button id="unlock" type="button">Odemknout PDF</button>
+  </div>
+  <section id="settings" hidden>
+    <p id="metadata" class="subtle"></p>
+    <details><summary>Vybrat stránky a povolená slova</summary>
+      <div class="fields"><label class="field">Od strany<input id="first-page" type="number" min="1" step="1" value="1" data-setting></label>
+        <label class="field">Do strany<input id="last-page" type="number" min="1" step="1" value="1" data-setting></label></div>
+      <label class="field">Povolená slova<textarea id="ignored" placeholder="Příjmení a názvy oddělené čárkou nebo mezerou" data-setting></textarea></label>
+    </details>
+    <button id="run" class="primary" type="button">Spustit korekturu</button>
+  </section>
+  <div id="processing" class="processing" role="status" aria-live="polite" hidden>
+    <p id="progress-label"></p><progress id="progress" max="1" value="0"></progress>
+    <button id="cancel" type="button">Zastavit kontrolu</button>
+  </div>
+  <section id="result" hidden><hr><h2>Vaše korektury</h2>
+    <div id="complete" class="status"></div>
+    <div class="metrics"><div class="metric"><span>Nálezy celkem</span><strong id="count-total"></strong></div>
+      <div class="metric"><span>Stylistická doporučení</span><strong id="count-style"></strong></div>
+      <div class="metric"><span>Zkontrolované strany</span><strong id="count-pages"></strong></div>
+      <div class="metric"><span>Strany s OCR</span><strong id="count-ocr"></strong></div></div>
+    <div id="warnings"></div>
+    <div class="downloads"><a class="download" id="download-pdf">Stáhnout PDF s korekturami</a>
+      <a class="download" id="download-csv">Stáhnout seznam (CSV)</a>
+      <a class="download" id="download-json">Stáhnout podrobnosti (JSON)</a></div>
+    <p class="subtle">V Acrobat Readeru najdete zvýraznění a návrhy oprav v panelu Komentáře. CSV lze otevřít v tabulkovém editoru.</p>
+    <div id="counts" class="counts"></div>
+    <div id="listing"><div class="fields"><label class="field">Kategorie<select id="category"><option>Všechny</option></select></label>
+      <label class="field">Hledat v korekturách<input id="search" type="search" placeholder="Původní text, návrh nebo komentář"></label></div>
+      <div class="table-wrap"><table><thead><tr><th>Číslo</th><th>Strana</th><th>Kategorie</th><th>Původní text</th><th>Návrh</th><th>Komentář</th><th>Zdroj</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="pager"><button id="previous" type="button">Předchozí</button><span id="pagination"></span><button id="next" type="button">Další</button></div>
+    </div>
+    <p id="no-findings" class="subtle" hidden>V kontrolovaném rozsahu nebyly nalezeny chyby podle dostupného slovníku a pravidel.</p>
+  </section>
+  <footer class="footer">Korektura knihy · Česká diakritika · PDF, CSV a JSON · Veškeré zpracování v prohlížeči
+    <details><summary>Zdrojový kód a licence použitých součástí</summary><p>Zdrojový kód této verze je přibalený přímo v aplikaci. Aplikace používá MuPDF (AGPL-3.0-or-later), Nspell (MIT), český slovník LibreOffice a Tesseract.js / Tesseract.js-core / český OCR model (Apache-2.0). Toto zobrazení nabízí technický základ české korektury, nikoli úplnou gramatickou analýzu.</p><button id="download-source" type="button">Stáhnout zdrojový kód</button><pre id="licenses"></pre></details>
+  </footer>
+</main>
+<script id="assets" type="application/json">__PAYLOAD__</script>
+<script type="module">__APP__</script>
+</body></html>

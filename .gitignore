@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.streamlit/secrets.toml
+*.log
+output/
+data/tessdata/
+node_modules/
+web/dist/

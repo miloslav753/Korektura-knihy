@@ -1,0 +1,4 @@
+-c requirements.lock
+PyMuPDF==1.26.7
+streamlit==1.50.0
+spylls==0.1.7

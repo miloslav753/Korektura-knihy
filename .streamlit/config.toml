@@ -1,0 +1,14 @@
+[server]
+maxUploadSize = 150
+maxMessageSize = 200
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#276457"
+backgroundColor = "#f8f6f1"
+secondaryBackgroundColor = "#eeebe3"
+textColor = "#243b43"
+font = "sans serif"
