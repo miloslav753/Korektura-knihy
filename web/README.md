@@ -6,6 +6,8 @@ Samostatná HTML aplikace pro aktuální webové prohlížeče. PDF, český slo
 
 Otevřete sestavený `dist/index.html` v prohlížeči. Distribuční kopie se jmenuje `Korektura-knihy-bez-instalace.html`. Není potřeba žádný instalátor ani Python. Stránku lze načíst také z HTTPS hostingu; po načtení může zpracovávat dokumenty bez sítě.
 
+Příprava aplikace a načítání PDF mají vlastní ukazatel průběhu. Čtení z disku ukazuje MB a procenta; při otevírání PDF se zobrazuje neurčitý průběh a uplynulý čas. Korektura ukazuje stránku, procenta, čas a samostatný průběh OCR. Po načtení je výrazné tlačítko **Spustit korekturu**. Přetažení během přípravy bezpečně počká na hotové nástroje. Při zastavení se pracovní proces ihned ukončí; tlačítkem **Obnovit aplikaci** lze pokračovat bez znovuotevření HTML. Příprava a načítání mají timeout 120 s, kontrola timeout 180 s bez nového hlášení průběhu.
+
 Knihy se načítají po stránkách, text v blocích s překryvem. Volitelná stylistika, povolená slova, výběr stran, průběh, zastavení, filtrování a stránkování seznamu jsou součástí rozhraní. Výstup zachovává všechny původní strany, text, rozměry, otočení a existující komentáře. U zaheslovaného PDF se zachová šifrování a heslo. OCR nezapisuje novou textovou vrstvu do skenu; přidává pouze anotace. Limity jsou 150 MB, 10 000 stran a 50 000 nálezů na kontrolu. Velké knihy je vhodné kontrolovat po rozsazích stran.
 
 Pravopis používá český slovník LibreOffice/Hunspell přes Nspell. Gramatika, interpunkce a stylistika používají vybraná explicitní pravidla. Úplná větná analýza, shoda podmětu s přísudkem a všechny čárky ve větách nejsou pokryty. Nálezy jsou návrhy k posouzení. Jména a odborné výrazy lze přidat mezi povolená slova. Automatické přepisování textu PDF není součástí aplikace; výsledkem je anotované PDF.
@@ -37,7 +39,7 @@ Sestavení vytvoří `dist/index.html`, `.nojekyll`, `sources.zip` a `build-prov
 
 ## Ověření
 
-`npm test` spouští 8 integračních a jazykových testů. Pro skutečný test v prohlížeči v připraveném cloudovém prostředí:
+`npm test` spouští 14 integračních a jazykových testů, včetně čekání na připravenost pracovního procesu, chyb, timeoutů a zastavení. Pro skutečný test v prohlížeči v připraveném cloudovém prostředí:
 
 ```bash
 # V prvním procesu:
@@ -46,6 +48,10 @@ python3 -m http.server 8510 --bind 127.0.0.1 --directory web/dist
 /workspace/.cloud-setup/korektura-knihy/venv/bin/python -u web/tests/browser_check.py
 ```
 
-Tyto Pythonové příkazy slouží jen k vývojovému testování. Test načte HTML, odpojí veškerou síť a skutečně zpracuje a stáhne dokumenty v prohlížeči; kontroluje také OCR, heslo, otočení a původní pixely. Očekávání: 7 zpráv PASS. Jiný testovací server lze určit proměnnou `KOREKTURA_BROWSER_TEST_URL`.
+Tyto Pythonové příkazy slouží jen k vývojovému testování. Test načte HTML, odpojí veškerou síť a skutečně zpracuje a stáhne dokumenty v prohlížeči; kontroluje také OCR, heslo, otočení a původní pixely. Očekávání: 8 zpráv PASS, včetně přetažení PDF ještě během přípravy aplikace. Jiný testovací server lze určit proměnnou `KOREKTURA_BROWSER_TEST_URL`.
 
 Cloudový Chromium administrátorsky blokuje lokální adresy `file://`, proto je zde skutečný test přes místní soubor omezen. Hostovaná stránka a veškeré zpracování po odpojení sítě jsou ověřené. Veřejné nasazení, přímé otevření souboru na Windows a Acrobat Reader zde nebyly ověřeny.
+
+Regrese chyb a zotavení v prohlížeči: `python -u web/tests/loading_check.py` ze stejného venv a proti stejnému serveru. Ověřuje selhání přípravy, pád pracovního procesu, timeout načítání, průběh času, okamžité zastavení a úspěšné opakování kontroly. Očekávání: 4 zprávy PASS.
+
+Kontrola stostránkové knihy: `python -u web/tests/book_check.py`. Vytvoří malé PDF se 100 textovými stranami, zkontroluje všechny strany bez sítě, skutečný průběh, 200 očekávaných korektur a stažené PDF se zachovanými textovými streamy i RGBA vykreslením původních stran.

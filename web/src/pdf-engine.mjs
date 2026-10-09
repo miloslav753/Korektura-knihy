@@ -50,7 +50,7 @@ export function extractPage(page) {
   return {text: joined, positions: mapped, hasImages};
 }
 
-export async function checkPage(text, checker, options, cancelled) {
+export async function checkPage(text, checker, options, cancelled, onProgress = () => {}) {
   const found = new Map();
   let start = 0;
   while (start < text.length) {
@@ -65,6 +65,7 @@ export async function checkPage(text, checker, options, cancelled) {
       const absolute = {...item, start: item.start + start, end: item.end + start};
       found.set(`${absolute.start}:${absolute.end}:${absolute.category}`, absolute);
     }
+    onProgress(end / text.length);
     if (end === text.length) break;
     start = Math.max(start + 1, end - 200);
     while (start < end && !/\s/u.test(text[start - 1])) start++;
@@ -133,13 +134,15 @@ export async function processPdf(bytes, checker, options, {progress = () => {}, 
     }
     for (let index = first - 1; index < last; index++) {
       if (cancelled()) throw new Error('CANCELLED');
-      progress({done: index - first + 1, total: last - first + 1, page: index + 1});
+      const status = {done: index - first + 1, total: last - first + 1, page: index + 1};
+      progress({...status, message: 'Načítám', stage: 'page'});
       const page = doc.loadPage(index);
       try {
         let {text, positions, hasImages} = extractPage(page);
         let source = 'Text PDF';
         if (text.trim().length < 30 && (hasImages || !text.trim())) {
           if (options.useOCR && ocr) {
+            progress({...status, message: 'Rozpoznávám text na', stage: 'ocr'});
             const raster = rasterize(page);
             const tsv = await ocr(raster.image);
             ({text, positions} = extractOCR(tsv, raster.scale, raster.bounds));
@@ -154,7 +157,9 @@ export async function processPdf(bytes, checker, options, {progress = () => {}, 
           skippedPages.push(index + 1); warnings.push(`Strana ${index + 1}: nebyl nalezen text ke kontrole.`); continue;
         }
         checkedPages++;
-        for (const finding of await checkPage(text, checker, options, cancelled)) {
+        progress({...status, message: 'Kontroluji text na', stage: 'text'});
+        for (const finding of await checkPage(text, checker, options, cancelled,
+          fraction => progress({...status, message: 'Kontroluji text na', stage: 'text', fraction: fraction * .9}))) {
           const quads = findingQuads(positions, finding);
           if (!quads.length) throw new Error(`Nález na straně ${index + 1} nelze přiřadit k místu v PDF.`);
           if (corrections.length >= 50000) throw new Error('Více než 50 000 nálezů. Zpracujte menší rozsah stran.');
@@ -173,11 +178,14 @@ export async function processPdf(bytes, checker, options, {progress = () => {}, 
           } finally { annotation.destroy(); }
           corrections.push(correction);
         }
-      } finally { page.destroy(); }
-      progress({done: index - first + 2, total: last - first + 1, page: index + 1});
+      } finally {
+        page.destroy();
+        progress({done: index - first + 2, total: last - first + 1, page: index + 1, stage: 'page'});
+      }
       await pause();
     }
     if (cancelled()) throw new Error('CANCELLED');
+    progress({done: last - first + 1, total: last - first + 1, page: last, stage: 'save'});
     const buffer = doc.saveToBuffer('compress=yes,garbage=0,encrypt=keep');
     let pdf;
     try { pdf = buffer.asUint8Array().slice(); } finally { buffer.destroy(); }

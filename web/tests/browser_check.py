@@ -1,5 +1,6 @@
 """Real browser-only upload/download and offline OCR verification."""
 import csv
+import base64
 import io
 import json
 import os
@@ -39,7 +40,22 @@ with tempfile.TemporaryDirectory(prefix="korektura-web-") as directory, sync_pla
     page.goto(URL, wait_until="domcontentloaded")
     # Every subsequent operation must work with all network access disabled.
     context.set_offline(True)
+    # Reproduce the reported race: a drop arrives before dictionary/PDF boot.
+    expect(page.locator('#startup-progress')).to_be_visible()
+    page.evaluate('''encoded => {
+      window.progressLog=[];
+      new MutationObserver(() => progressLog.push(document.getElementById('progress-label').textContent))
+        .observe(document.getElementById('progress-label'), {subtree:true,childList:true,characterData:true});
+      const drop=new DataTransfer();
+      drop.items.add(new File([Uint8Array.from(atob(encoded), c=>c.charCodeAt(0))], 'ukázka.pdf', {type:'application/pdf'}));
+      document.getElementById('dropzone').dispatchEvent(new DragEvent('drop',{dataTransfer:drop,bubbles:true,cancelable:true}));
+    }''', base64.b64encode(source.read_bytes()).decode())
+    expect(page.locator('#processing')).to_be_visible()
     expect(page.locator("#startup")).to_have_text("Připraveno. Vyberte své PDF.", timeout=120000)
+    expect(page.locator('#run')).to_be_enabled(timeout=30000)
+    expect(page.locator('#file-help')).to_contain_text('Spustit korekturu')
+    expect(page.locator('#startup-progress')).to_be_hidden()
+    print('PASS: early PDF drop waits for initialization, finishes loading and reveals the start button', flush=True)
 
     def upload(path):
         page.locator("#file").set_input_files(str(path))
@@ -62,7 +78,11 @@ with tempfile.TemporaryDirectory(prefix="korektura-web-") as directory, sync_pla
         assert not event.value.failure()
         return target, event.value.suggested_filename
 
-    upload(source); run(2)
+    run(2)
+    history = page.evaluate('window.progressLog')
+    assert any('Otevírám PDF' in label for label in history), history
+    assert any('stranu' in label for label in history), history
+    assert any('Ukládám PDF' in label for label in history), history
     expect(page.locator("#count-total")).to_have_text("3")
     output, name = download("download-pdf", "annotated.pdf")
     assert name == "ukazka_korektury.pdf"

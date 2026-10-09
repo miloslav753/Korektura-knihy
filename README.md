@@ -6,9 +6,9 @@ Webová aplikace pro české korektury PDF. Nahrajete PDF z počítače, spustí
 
 Nová verze v `web/` zpracovává PDF, český slovník i OCR **přímo v prohlížeči**. Nevyžaduje Python, spouštěč, systémový Tesseract ani připojení při kontrole knihy. Veškeré potřebné součásti jsou přibaleny do jediného souboru HTML.
 
-1. Stáhněte **Korektura-knihy-bez-instalace.html** (sestavená kopie: `web/dist/index.html`).
+1. [Stáhněte hotovou aplikaci v ZIP](https://github.com/miloslav753/Korektura-knihy/raw/refs/heads/codex/browser-download/downloads/Korektura-knihy-bez-instalace.zip), rozbalte jej a otevřete **Korektura-knihy.html** (vývojové sestavení: `web/dist/index.html`).
 2. Otevřete jej v aktuálním Chrome, Edge, Firefoxu nebo Safari.
-3. Vyberte PDF, nastavte rozsah a spusťte korekturu.
+3. Vyberte PDF, vyčkejte na načtení, nastavte rozsah a klikněte na **Spustit korekturu**. Verze 1.1 ukazuje průběh přípravy, načítání, kontroly i OCR, uplynulý čas a umožňuje zastavení a obnovení po chybě.
 4. Stáhněte PDF s komentáři a seznam v CSV nebo JSON.
 
 Celá aplikace běží v paměti prohlížeče; kniha a heslo se neodesílají na server. Funguje také jako běžná stránka na **statickém HTTPS hostingu**. Běžný uživatel webové stránky nic nestahuje ani neinstaluje. Veřejná internetová adresa musí vzniknout skutečným nasazením na hosting; publikování cloudového vývojového prostředí ji nevytváří.

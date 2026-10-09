@@ -34,7 +34,8 @@ async function recognize(image) {
     ocrWorker = await createWorker('ces', 1, {
       workerPath, corePath, langPath: 'korektura://local', workerBlobURL: false, gzip: false, cacheMethod: 'none',
       errorHandler: () => {},
-      logger: status => self.postMessage({type: 'ocr-status', message: 'Rozpoznávám text stránky…', progress: status.progress}),
+      logger: status => self.postMessage({type: 'ocr-status',
+        message: status.status === 'recognizing text' ? 'Rozpoznávám text aktuální strany…' : 'Připravuji české OCR…', progress: status.progress}),
     });
   }
   const result = await ocrWorker.recognize(image, {}, {text: true, tsv: true});
@@ -48,6 +49,7 @@ self.onmessage = async ({data}) => {
     if (data.type === 'inspect' || data.type === 'authenticate') {
       if (data.bytes) sourceBytes = data.bytes;
       if (!sourceBytes) throw new Error('Nejprve vyberte PDF.');
+      self.postMessage({type: 'inspect-status', message: 'Otevírám PDF a zjišťuji počet stran…'});
       const {doc, pages, locked} = openPdf(sourceBytes, data.password || '', data.type === 'inspect');
       doc.destroy();
       self.postMessage({type: 'metadata', id: data.id, pages, locked});

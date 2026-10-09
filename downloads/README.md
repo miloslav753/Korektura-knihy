@@ -7,3 +7,5 @@ ZIP rozbalte a soubor `Korektura-knihy.html` otevřete v aktuálním Chrome nebo
 Kontrola nabízí pravopis a základní gramatická, interpunkční a volitelná stylistická pravidla. Úplná syntaktická kontrola české gramatiky není implementována. Původní text PDF se zachovává a korektury jsou standardní PDF anotace. Zdrojový kód a licence můžete stáhnout z rozhraní aplikace.
 
 Při blokovaném přímém stažení otevřete soubor ZIP na GitHubu a zvolte **Download raw file**.
+
+Verze **1.1** opravuje zaseknuté přetažení PDF během přípravy a doplňuje průběh načítání, kontroly a OCR, uplynulý čas, zastavení a obnovení po chybě. Po načtení PDF klikněte na **Spustit korekturu**.
