@@ -8,12 +8,16 @@ export class WorkerClient {
     this.ready = new Promise((resolve, reject) => { this.resolveReady = resolve; this.rejectReady = reject; });
     this.ready.catch(() => {});
     this.bootTimer = setTimeout(() => this.fail(new Error('Příprava aplikace trvá příliš dlouho. Zkuste ji obnovit tlačítkem níže.')), bootTimeout);
-    worker.onerror = event => this.fail(new Error(`Pracovní proces se zastavil. ${event.message || 'Prohlížeči mohla dojít paměť.'}`));
+    let booted = false;
+    worker.onerror = event => this.fail(new Error(event.message
+      ? `Pracovní proces se zastavil: ${event.message}`
+      : booted ? 'Pracovní proces se zastavil bez podrobností. Zkuste aplikaci obnovit nebo vybrat menší rozsah stran.'
+        : 'Prohlížeč nedovolil spustit nástroje aplikace. Použijte aktuální soubor aplikace otevřený přímo z rozbalené složky.'));
     worker.onmessageerror = () => this.fail(new Error('Prohlížeč nedokázal předat data PDF. Zkuste menší soubor.'));
     worker.onmessage = ({data}) => {
       if (this.failure) return;
       if (data.type === 'boot-error') { this.fail(new Error(data.message)); return; }
-      if (data.type === 'ready') { clearTimeout(this.bootTimer); this.resolveReady(); }
+      if (data.type === 'ready') { booted = true; clearTimeout(this.bootTimer); this.resolveReady(); }
       if (['progress', 'ocr-status'].includes(data.type)) {
         for (const task of this.pending.values()) if (task.type === 'process') this.arm(task);
       }

@@ -84,7 +84,7 @@ with tempfile.TemporaryDirectory(prefix='korektura-loading-') as directory, sync
     page.locator('#run').click()
     expect(page.locator('#processing')).to_be_visible()
     page.clock.fast_forward(5000)
-    expect(page.locator('#elapsed')).to_contain_text('5 s')
+    page.wait_for_function(r'Number(document.getElementById("elapsed").textContent.match(/\d+/)?.[0]) >= 5')
     page.locator('#cancel').click()
     expect(page.locator('#message')).to_contain_text('zastaveno')
     expect(page.locator('#processing')).to_be_hidden()

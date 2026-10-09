@@ -5,6 +5,7 @@ import {createHash} from 'node:crypto';
 import {gzipSync} from 'node:zlib';
 import {build} from 'esbuild';
 import {zipSync} from 'fflate';
+import {Script} from 'node:vm';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.dirname(root);
@@ -12,9 +13,10 @@ const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');
 function asset(bytes) {
   return {sha256: sha256(bytes), data: gzipSync(bytes, {level: 9}).toString('base64')};
 }
-async function bundle(entry) {
-  const output = await build({entryPoints: [path.join(root, 'src', entry)], bundle: true, format: 'esm',
+async function bundle(entry, format = 'esm') {
+  const output = await build({entryPoints: [path.join(root, 'src', entry)], bundle: true, format,
     platform: 'browser', target: 'es2022', minify: true, write: false,
+    define: {'import.meta.url': 'globalThis.location.href'},
     external: ['node:fs', 'module'], legalComments: 'inline'});
   return output.outputFiles[0].contents;
 }
@@ -31,6 +33,7 @@ if (sha256(ocrModel) !== '934bcaf97ef3348413263331131c9fa7f55f30db333c711929c124
   throw new Error('Czech OCR model checksum mismatch. Run scripts/setup_ocr.py with the pinned model.');
 }
 const licenseFiles = [
+  ['Noble hashes — MIT', 'node_modules/@noble/hashes/LICENSE'],
   ['Nspell — MIT', 'node_modules/nspell/license'],
   ['Tesseract.js — Apache-2.0', 'node_modules/tesseract.js/LICENSE.md'],
   ['Tesseract.js-core / Czech OCR model — Apache-2.0', 'node_modules/tesseract.js-core/LICENSE'],
@@ -56,8 +59,16 @@ for (const name of ['build.mjs', 'package.json', 'package-lock.json', 'index.tem
 for (const name of ['README.md', 'scripts/setup_ocr.py']) sourceFiles[`Korektura-knihy/${name}`] = new Uint8Array(await fs.readFile(path.join(repo, name)));
 sourceFiles['Korektura-knihy/web/THIRD-PARTY-LICENSES.txt'] = new TextEncoder().encode(licenses);
 const sourcesZIP = zipSync(sourceFiles, {level: 9, mtime: new Date('1980-01-01T00:00:00Z')});
+// Module workers cannot fetch their blob source from an opaque file origin.
+// Keep MuPDF's top-level awaits inside one async classic script, so boot and
+// engine loading use no module fetches or CORS-dependent imports.
+const engine = new TextDecoder().decode(await bundle('worker.mjs'));
+const classicEngine = `globalThis.__KOREKTURA_ENGINE_BOOT__=(async()=>{${engine}\n})();`;
+new Script(classicEngine, {filename: 'korektura-engine.js'});
+const bootstrap = await bundle('worker-bootstrap.mjs', 'iife');
+new Script(new TextDecoder().decode(bootstrap), {filename: 'korektura-bootstrap.js'});
 const payload = {
-  engine: asset(await bundle('worker.mjs')), bootstrap: asset(await bundle('worker-bootstrap.mjs')),
+  engine: asset(Buffer.from(classicEngine)), bootstrap: asset(bootstrap),
   mupdfWasm: asset(await fs.readFile(path.join(root, 'node_modules/mupdf/dist/mupdf-wasm.wasm'))),
   aff: asset(await fs.readFile(path.join(dictionary, 'cs_CZ.aff'))), dic: asset(await fs.readFile(path.join(dictionary, 'cs_CZ.dic'))),
   ocrWorker: asset(await fs.readFile(path.join(root, 'node_modules/tesseract.js/dist/worker.min.js'))),

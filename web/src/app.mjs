@@ -213,7 +213,7 @@ async function initialize() {
   }
   if (workerURL) URL.revokeObjectURL(workerURL);
   workerURL = scriptURL(await unpack(assets.bootstrap));
-  client = new WorkerClient(new Worker(workerURL, {type: 'module'}), assets, {onFailure: failure, onEvent: data => {
+  client = new WorkerClient(new Worker(workerURL), assets, {onFailure: failure, onEvent: data => {
     if (data.type === 'status') $('startup').textContent = data.message;
     else if (data.type === 'ready') {
       $('startup').textContent = 'Připraveno. Vyberte své PDF.';

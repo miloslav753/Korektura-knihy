@@ -31,6 +31,12 @@ test('A crashed worker rejects inspection rather than leaving loading forever', 
   worker.onerror({message: 'Out of memory'});
   await assert.rejects(pending, /Out of memory/); assert.equal(client.pending.size, 0);
 });
+test('An opaque-origin boot error never claims a memory failure', async () => {
+  const worker = new Worker(), client = new WorkerClient(worker, {});
+  worker.onerror({});
+  await assert.rejects(client.ready, /Prohlížeč nedovolil spustit/);
+  assert(!client.failure.message.includes('paměť'));
+});
 test('A silent worker times out and reports a recoverable failure', async () => {
   const worker = new Worker(); let reported;
   const client = new WorkerClient(worker, {}, {requestTimeout: 20, onFailure: error => { reported = error; }});

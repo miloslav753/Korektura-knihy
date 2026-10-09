@@ -35,11 +35,11 @@ npm test
 
 `build.mjs` ověřuje slovník proti `data/cs_CZ/provenance.json` a OCR proti připnutému SHA-256. Model hledá v `KOREKTURA_TESSDATA`, cloudové složce `/workspace/.cloud-setup/korektura-knihy/tessdata` nebo v `../data/tessdata`. Komprimované součásti se po rozbalení znovu ověřují v prohlížeči pomocí SHA-256. NPM balíčky jsou připnuté v `package-lock.json`; použijte `npm ci` a zachovejte ověřování balíčků a TLS.
 
-Sestavení vytvoří `dist/index.html`, `.nojekyll`, `sources.zip` a `build-provenance.json`. Zdrojový ZIP je také vložený v HTML a lze ho stáhnout v rozhraní. MuPDF používá AGPL-3.0-or-later, Nspell MIT, Tesseract.js / Tesseract.js-core a OCR model Apache-2.0. Původní licenční texty českého slovníku jsou přiložené. Preferované zdroje MuPDF jsou dostupné v původním projektu verze 1.28.1; odkazy a licenční text jsou v HTML a zdrojovém archivu.
+Sestavení vytvoří `dist/index.html`, `.nojekyll`, `sources.zip` a `build-provenance.json`. Zdrojový ZIP je také vložený v HTML a lze ho stáhnout v rozhraní. MuPDF používá AGPL-3.0-or-later, Nspell a Noble hashes MIT, Tesseract.js / Tesseract.js-core a OCR model Apache-2.0. Původní licenční texty českého slovníku jsou přiložené. Preferované zdroje MuPDF jsou dostupné v původním projektu verze 1.28.1; odkazy a licenční text jsou v HTML a zdrojovém archivu.
 
 ## Ověření
 
-`npm test` spouští 14 integračních a jazykových testů, včetně čekání na připravenost pracovního procesu, chyb, timeoutů a zastavení. Pro skutečný test v prohlížeči v připraveném cloudovém prostředí:
+`npm test` spouští 18 integračních a jazykových testů, včetně čekání na připravenost pracovního procesu, chyb, timeoutů a zastavení. Pro skutečný test v prohlížeči v připraveném cloudovém prostředí:
 
 ```bash
 # V prvním procesu:
@@ -55,3 +55,9 @@ Cloudový Chromium administrátorsky blokuje lokální adresy `file://`, proto j
 Regrese chyb a zotavení v prohlížeči: `python -u web/tests/loading_check.py` ze stejného venv a proti stejnému serveru. Ověřuje selhání přípravy, pád pracovního procesu, timeout načítání, průběh času, okamžité zastavení a úspěšné opakování kontroly. Očekávání: 4 zprávy PASS.
 
 Kontrola stostránkové knihy: `python -u web/tests/book_check.py`. Vytvoří malé PDF se 100 textovými stranami, zkontroluje všechny strany bez sítě, skutečný průběh, 200 očekávaných korektur a stažené PDF se zachovanými textovými streamy i RGBA vykreslením původních stran.
+
+## Spuštění z místního souboru (verze 1.2)
+
+Pracovní proces i PDF engine jsou sestavené jako klasické skripty. Asynchronní inicializace MuPDF se uzavře do async funkce; engine se načte z přibaleného blobu pomocí `importScripts`. Nevzniká module fetch, který Chromium při neprůhledném původu místního souboru odmítá. Build ověřuje syntaxi obou klasických skriptů. Slovník, WASM, OCR a jejich kontrolní součty se stále načítají pouze z HTML. Pokud pracovním procesům chybí WebCrypto, hash se ověří stejným SHA-256 pomocí připnutého Noble hashes 2.0.1 (MIT); ověřování se nevynechává.
+
+Regrese: `python -u web/tests/opaque_origin_check.py` proti stejnému internímu serveru. Celé sestavené HTML se otevře v povoleném sandboxovaném rámci s neprůhledným původem, obdobným místnímu souboru. Bez sítě ověří spuštění, stostránkové PDF, stažení a české OCR. Očekávání: 3 zprávy PASS. Původní module worker zde selhával přesně hláškou o zastavení pracovního procesu bez detailů. Administrátorská politika cloudového Chromia pro `file://` zůstává nezměněná; tento test neopravňuje k tvrzení, že byl proveden přímý test souboru na Windows nebo v Edge.
